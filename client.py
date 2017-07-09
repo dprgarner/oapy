@@ -9,23 +9,7 @@ from websocket import create_connection
 class Client(object):
     def __init__(self):
         self.set_args()
-        self.set_auth_data()
-
-        if self.contest:
-            while True:
-                self.connect()
-        else:
-            self.connect()
-
-    def connect(self):
-        try:
-            self.ws = create_connection('wss://{}'.format(self.hostname))
-            self.authenticate()
-            print('Bot connected - waiting to start game...')
-            self.play_game()
-        finally:
-            if hasattr(self, 'ws') and self.ws.connected:
-                self.ws.close()
+        self.connect()
 
     def send(self, msg):
         """
@@ -46,67 +30,67 @@ class Client(object):
 
     def set_args(self):
         parser = argparse.ArgumentParser(
-            description='Python Battlebot Client'
+            description='Python Client for Aoire'
         )
         parser.add_argument(
-            '--authfile',
+            '--hostname',
             type=str,
-            default='auth.json',
-            help='Use a bot credentials JSON file. (Default: auth.json)',
+            required=True,
+            help='The location of the server, e.g. "localhost:3000".',
         )
         parser.add_argument(
-            '--contest',
+            '--user',
             type=str,
-            default='',
-            help='Take part in a contest.',
+            required=True,
+            help='The bot name and owner, e.g. "BotName (by David)".',
+        )
+        parser.add_argument(
+            '--room',
+            type=str,
+            required=True,
+            help='Where you agree to meet with another player.',
+        )
+        parser.add_argument(
+            '--ngames',
+            type=int,
+            default=5,
+            help='The number of consecutive games to play.',
+        )
+        parser.add_argument(
+            '--gametype',
+            type=str,
+            default='Gomoku',
+            help='The type of game. Only Gomoku is currently supported.',
         )
         args = parser.parse_args()
         for k, v in args._get_kwargs():
             setattr(self, k, v)
 
-    def set_auth_data(self):
-        auth_file = path.join(
-            path.dirname(path.realpath(__file__)),
-            self.authfile,
-        )
-        with open(auth_file) as f:
-            data = json.loads(f.read())
-        for k, v in data.items():
-            setattr(self, k, v)
+    def connect(self):
+        try:
+            self.ws = create_connection(
+                'ws://{}/game'.format(self.hostname)
+            )
+            print('Bot connected - waiting to start game...')
+            self.send({
+                'type': 'StartGame',
+                'room': self.room,
+                'userAgent': self.user,
+                'gameType': self.gametype,
+                'nGames': self.ngames,
+            })
+            confirmation = self.recv()
+            assert (confirmation and confirmation['type'] == 'YouAre')
+            self.index = confirmation['index']
 
-    def authenticate(self):
-        # The first message from the server is always "salt". Append this to
-        # the bot's pass_hash, encrypt it with sha256, and then send a "login"
-        # message to the server.
-        salt = self.recv()['salt']
-        login_hash = hashlib.sha256(
-            '{}{}'.format(self.pass_hash, salt).encode()
-        ).hexdigest()
+            started = self.recv()
+            assert started['type'] == 'Started'
 
-        login_message = {
-            'bot_id': self.bot_id,
-            'login_hash': login_hash,
-            'game': self.game,
-        }
-        if self.contest:
-            login_message['contest'] = self.contest
-        self.send(login_message)
-
-        auth_response = self.recv()
-        if (
-            not auth_response or
-            not self.ws.connected or
-            auth_response['authentication'] != 'OK'
-        ):
-            raise Exception('Failed to connect and authenticate.')
-
-    def play_game(self):
-        """
-        Override this method to implement your bot!
-        """
-        raise NotImplementedError(
-            "Write your bot's logic here. (Or even better: extend this class.)"
-        )
+            for i in range(self.ngames):
+                self.play_game((self.index + i) % 2 == 0)
+        finally:
+            if hasattr(self, 'ws') and self.ws.connected:
+                self.ws.close()
 
 
 if __name__ == '__main__':

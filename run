@@ -1,7 +1,0 @@
-#!/bin/bash
-. activate
-
-while true; do
-  python noughtsandcrosses.py
-  sleep 1
-done
