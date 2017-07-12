@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from os import path
 import json
 import hashlib
@@ -56,12 +57,6 @@ class Client(object):
             default=5,
             help='The number of consecutive games to play.',
         )
-        parser.add_argument(
-            '--gametype',
-            type=str,
-            default='Gomoku',
-            help='The type of game. Only Gomoku is currently supported.',
-        )
         args = parser.parse_args()
         for k, v in args._get_kwargs():
             setattr(self, k, v)
@@ -76,15 +71,13 @@ class Client(object):
 
     def connect(self):
         try:
-            self.ws = create_connection(
-                'ws://{}/game'.format(self.hostname)
-            )
+            self.ws = create_connection('ws://{}/game'.format(self.hostname))
             print('Bot connected - waiting to start game...')
             self.send({
                 'type': 'StartGame',
                 'room': self.room,
                 'userAgent': self.user,
-                'gameType': self.gametype,
+                'gameType': self.GAME_TYPE,
                 'nGames': self.ngames,
             })
             self.index = self.recv_type('YouAre')['index']
@@ -98,5 +91,71 @@ class Client(object):
                 self.ws.close()
 
 
-if __name__ == '__main__':
-    Client()
+class GomokuBase(Client):
+    SIZE = 15
+    GAME_TYPE = 'Gomoku'
+
+    def render_state(self, state):
+        """
+        Return a pretty string representation of the board.
+        """
+        MOVES_STR = {
+            -1: '▒▒',
+            0: '  ',
+            1: '██',
+        }
+
+        numbers = '   ' + ''.join(
+            str(i) + (' ' if i < 10 else '')
+            for i in range(1, self.SIZE + 1)
+        )
+        top = '  ╔' + ('══' * self.SIZE) + '╗'
+        bottom = '  ╚' + ('══' * self.SIZE) + '╝'
+
+        collated_string = '{}\n{}\n{}\n{}'.format(
+            numbers,
+            top,
+            '\n'.join([
+                '{}║{}║'.format(
+                    (' ' if i < 9 else '') + str(i + 1),
+                    ''.join([
+                        MOVES_STR[state[self.SIZE * i + j]]
+                        for j in range(self.SIZE)
+                    ]),
+                )
+                for i in range(self.SIZE)
+            ]),
+            bottom,
+        )
+        return collated_string
+
+    def play_game(self, first_player):
+        """
+        A simple implementation of a Gomoku game-playing bot.
+        """
+        state = [0] * (self.SIZE * self.SIZE)
+        turn_number = 0
+        player_number = -1 if first_player else 1
+
+        print('Your bot is playing {} ({})'.format(
+            'first' if first_player else 'second',
+            'black' if first_player else 'white'
+        ))
+        try:
+            for turn_number in range(self.SIZE * self.SIZE):
+                is_my_turn = bool(turn_number % 2) != first_player
+
+                if is_my_turn:
+                    turn_space = self.play_turn(state, player_number)
+                    self.send({'type': 'Move', 'move': turn_space})
+
+                update = self.recv_type('PlayerMove')
+                state[update['move']] = 1 if is_my_turn else -1
+                if 'winner' in update:
+                    won = self.index == update.get('winner')
+                    print('Your bot has {} the game'.format(
+                        'won' if won else 'lost'
+                    ))
+                    return
+        finally:
+            print(self.render_state(state))
