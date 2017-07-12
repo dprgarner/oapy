@@ -91,7 +91,7 @@ class Client(object):
 
             for i in range(self.ngames):
                 self.recv_type('Started')
-                print('Game {} started'.format(i))
+                print('Game {} started'.format(i + 1))
                 self.play_game((self.index + i) % 2 == 0)
         finally:
             if hasattr(self, 'ws') and self.ws.connected:

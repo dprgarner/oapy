@@ -47,6 +47,10 @@ class Gomoku(Client):
         state = [0] * (self.SIZE * self.SIZE)
         turn_number = 0
 
+        print('Your bot is playing {} ({})'.format(
+            'first' if first_player else 'second',
+            'black' if first_player else 'white'
+        ))
         try:
             for turn_number in range(self.SIZE * self.SIZE):
                 is_my_turn = bool(turn_number % 2) != first_player
@@ -59,6 +63,10 @@ class Gomoku(Client):
                 update = self.recv_type('PlayerMove')
                 state[update['move']] = 1 if is_my_turn else -1
                 if 'winner' in update:
+                    won = self.index == update.get('winner')
+                    print('Your bot has {} the game'.format(
+                        'won' if won else 'lost'
+                    ))
                     return
         finally:
             print(self.render_state(state))
