@@ -66,6 +66,14 @@ class Client(object):
         for k, v in args._get_kwargs():
             setattr(self, k, v)
 
+    def recv_type(self, type_):
+        """
+        Assert that the correct message is received.
+        """
+        msg = self.recv()
+        assert msg and msg['type'] == type_, msg
+        return msg
+
     def connect(self):
         try:
             self.ws = create_connection(
@@ -79,14 +87,11 @@ class Client(object):
                 'gameType': self.gametype,
                 'nGames': self.ngames,
             })
-            confirmation = self.recv()
-            assert (confirmation and confirmation['type'] == 'YouAre')
-            self.index = confirmation['index']
-
-            started = self.recv()
-            assert started['type'] == 'Started'
+            self.index = self.recv_type('YouAre')['index']
 
             for i in range(self.ngames):
+                self.recv_type('Started')
+                print('Game {} started'.format(i))
                 self.play_game((self.index + i) % 2 == 0)
         finally:
             if hasattr(self, 'ws') and self.ws.connected:

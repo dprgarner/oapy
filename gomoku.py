@@ -17,16 +17,12 @@ class Gomoku(Client):
             if is_my_turn:
                 # turn = self.play_turn(state)
                 turn = {'type': 'Move', 'move': turn_number}
-                print('Sending', turn)
                 self.send(turn)
 
-            update = self.recv()
-            if not update:
-                print(state)
-                raise Exception('ended')
-
-            move = update['move']
-            state[move] = 1 if is_my_turn else -1
+            update = self.recv_type('PlayerMove')
+            state[update['move']] = 1 if is_my_turn else -1
+            if 'winner' in update:
+                return
 
 
 if __name__ == '__main__':

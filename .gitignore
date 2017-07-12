@@ -1,4 +1,5 @@
 __pycache__
 activate
-auth.json
 env
+*.pyc
+*.swp
