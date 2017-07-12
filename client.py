@@ -23,6 +23,7 @@ class Client(object):
         All messages from the server are valid JSON.
         """
         msg = self.ws.recv()
+        print(msg)
         return (
             json.loads(msg)
             if msg
@@ -54,7 +55,7 @@ class Client(object):
         parser.add_argument(
             '--ngames',
             type=int,
-            default=5,
+            default=6,
             help='The number of consecutive games to play.',
         )
         args = parser.parse_args()
@@ -159,9 +160,12 @@ class GomokuBase(Client):
                 )
                 if 'winner' in update:
                     won = self.index == update.get('winner')
-                    print('Your bot has {} the game'.format(
-                        'won' if won else 'lost'
-                    ))
+                    if update.get('winner') == -2:
+                        print('The game was a draw.')
+                    else:
+                        print('Your bot has {} the game'.format(
+                            'won' if won else 'lost'
+                        ))
                     return
         finally:
             print(self.render_state(state))
