@@ -90,6 +90,9 @@ class Client(object):
             if hasattr(self, 'ws') and self.ws.connected:
                 self.ws.close()
 
+    def play_game(self, first_player):
+        raise NotImplementedError()
+
 
 class GomokuBase(Client):
     SIZE = 15
@@ -107,7 +110,7 @@ class GomokuBase(Client):
 
         numbers = '   ' + ''.join(
             str(i) + (' ' if i < 10 else '')
-            for i in range(1, self.SIZE + 1)
+            for i in range(self.SIZE)
         )
         top = '  ╔' + ('══' * self.SIZE) + '╗'
         bottom = '  ╚' + ('══' * self.SIZE) + '╝'
@@ -117,7 +120,7 @@ class GomokuBase(Client):
             top,
             '\n'.join([
                 '{}║{}║'.format(
-                    (' ' if i < 9 else '') + str(i + 1),
+                    (' ' if i < 10 else '') + str(i),
                     ''.join([
                         MOVES_STR[state[self.SIZE * i + j]]
                         for j in range(self.SIZE)
@@ -131,7 +134,8 @@ class GomokuBase(Client):
 
     def play_game(self, first_player):
         """
-        A simple implementation of a Gomoku game-playing bot.
+        A simple memoryless implementation of a Gomoku game-playing bot. Modify
+        this if you want to do something fancy.
         """
         state = [0] * (self.SIZE * self.SIZE)
         turn_number = 0
@@ -150,7 +154,9 @@ class GomokuBase(Client):
                     self.send({'type': 'Move', 'move': turn_space})
 
                 update = self.recv_type('PlayerMove')
-                state[update['move']] = 1 if is_my_turn else -1
+                state[update['move']] = (
+                    player_number if is_my_turn else -player_number
+                )
                 if 'winner' in update:
                     won = self.index == update.get('winner')
                     print('Your bot has {} the game'.format(
@@ -159,3 +165,6 @@ class GomokuBase(Client):
                     return
         finally:
             print(self.render_state(state))
+
+    def play_turn(self, state, player):
+        raise NotImplementedError()
