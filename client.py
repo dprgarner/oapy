@@ -91,7 +91,7 @@ class Client(object):
             if hasattr(self, 'ws') and self.ws.connected:
                 self.ws.close()
 
-    def play_game(self, first_player):
+    def play_game(self, is_first_player, player_colour):
         raise NotImplementedError()
 
 
@@ -99,14 +99,14 @@ class GomokuBase(Client):
     SIZE = 15
     GAME_TYPE = 'Gomoku'
 
-    def render_state(self, state):
+    def render_state(self, state, is_first_player_black):
         """
         Return a pretty string representation of the board.
         """
         MOVES_STR = {
-            -1: '▒▒',
+            -1 if is_first_player_black else 1: '▒▒',
             0: '  ',
-            1: '██',
+            1 if is_first_player_black else -1: '██',
         }
 
         numbers = '   ' + ''.join(
@@ -133,22 +133,23 @@ class GomokuBase(Client):
         )
         return collated_string
 
-    def play_game(self, first_player):
+    def play_game(self, is_first_player):
         """
-        A simple memoryless implementation of a Gomoku game-playing bot. Modify
-        this if you want to do something fancy.
+        A simple memoryless implementation of a Gomoku game-playing bot.
+        Modify this if you want to do something fancy.
+        (The first player is -1, the second player is 1).
         """
         state = [0] * (self.SIZE * self.SIZE)
         turn_number = 0
-        player_number = -1 if first_player else 1
+        player_number = -1 if is_first_player else 1
 
         print('Your bot is playing {} ({})'.format(
-            'first' if first_player else 'second',
-            'black' if first_player else 'white'
+            'first' if is_first_player else 'second',
+            'black' if self.index == 0 else 'white'
         ))
         try:
             for turn_number in range(self.SIZE * self.SIZE):
-                is_my_turn = bool(turn_number % 2) != first_player
+                is_my_turn = bool(turn_number % 2) != is_first_player
 
                 if is_my_turn:
                     turn_space = self.play_turn(state, player_number)
@@ -168,7 +169,11 @@ class GomokuBase(Client):
                         ))
                     return
         finally:
-            print(self.render_state(state))
+            is_first_player_black = (
+                is_first_player and self.index == 0 or
+                not is_first_player and self.index == 1
+            )
+            print(self.render_state(state, is_first_player_black))
 
     def play_turn(self, state, player):
         raise NotImplementedError()
